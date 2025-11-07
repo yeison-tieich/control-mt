@@ -2,16 +2,25 @@ import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import ProductsScreen from './components/ProductsScreen';
+import StaffScreen from './components/StaffScreen';
+import ClientesScreen from './components/ClientesScreen';
+import MaquinasScreen from './components/MaquinasScreen';
+import MantenimientoScreen from './components/MantenimientoScreen';
+import MateriasPrimasScreen from './components/MateriasPrimasScreen';
+import CalidadScreen from './components/CalidadScreen';
+import PlaceholderScreen from './components/PlaceholderScreen';
 
-type Screen = 'dashboard' | 'products' | 'staff';
-
-const PlaceholderScreen: React.FC<{ title: string }> = ({ title }) => (
-    <div className="p-8">
-        <h1 className="text-3xl font-bold text-gray-800">{title}</h1>
-        <p className="mt-4 text-gray-600">Esta sección está en construcción.</p>
-    </div>
-);
-
+export type Screen = 
+  | 'dashboard' 
+  | 'productos' 
+  | 'personal' 
+  | 'clientes'
+  | 'maquinas'
+  | 'mantenimiento'
+  | 'materias-primas'
+  | 'calidad'
+  | 'inventario' 
+  | 'reportes';
 
 const App: React.FC = () => {
   const [activeScreen, setActiveScreen] = useState<Screen>('dashboard');
@@ -20,10 +29,23 @@ const App: React.FC = () => {
     switch (activeScreen) {
       case 'dashboard':
         return <Dashboard />;
-      case 'products':
+      case 'productos':
         return <ProductsScreen />;
-      case 'staff':
-        return <PlaceholderScreen title="Gestión de Personal" />;
+      case 'personal':
+        return <StaffScreen />;
+      case 'clientes':
+        return <ClientesScreen />;
+       case 'maquinas':
+        return <MaquinasScreen />;
+      case 'mantenimiento':
+        return <MantenimientoScreen />;
+      case 'materias-primas':
+        return <MateriasPrimasScreen />;
+      case 'calidad':
+        return <CalidadScreen />;
+      case 'inventario':
+      case 'reportes':
+        return <PlaceholderScreen screenName={activeScreen} />;
       default:
         return <Dashboard />;
     }
@@ -32,7 +54,7 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
       <Sidebar activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
         {renderScreen()}
       </main>
     </div>

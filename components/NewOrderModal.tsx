@@ -17,7 +17,7 @@ const NewOrderModal: React.FC<NewOrderModalProps> = ({ onClose, onOrderCreated, 
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedProductId, setSelectedProductId] = useState<string>(initialProductId?.toString() || '');
   const [cantidad, setCantidad] = useState('');
-  const [prioridad, setPrioridad] = useState<'Baja' | 'Media' | 'Alta'>('Media');
+  const [prioridad, setPrioridad] = useState<'Normal' | 'Urgente'>('Normal');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -121,12 +121,11 @@ const NewOrderModal: React.FC<NewOrderModalProps> = ({ onClose, onOrderCreated, 
                     <select
                         id="priority-select"
                         value={prioridad}
-                        onChange={(e) => setPrioridad(e.target.value as 'Baja' | 'Media' | 'Alta')}
+                        onChange={(e) => setPrioridad(e.target.value as 'Normal' | 'Urgente')}
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-primary focus:border-primary"
                     >
-                        <option value="Baja">Baja</option>
-                        <option value="Media">Media</option>
-                        <option value="Alta">Alta</option>
+                        <option value="Normal">Normal</option>
+                        <option value="Urgente">Urgente</option>
                     </select>
                 </div>
 

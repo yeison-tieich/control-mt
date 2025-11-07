@@ -1,71 +1,89 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { OrdenProduccion } from '../types';
+import type { OrdenProduccion } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+// The API key MUST be obtained exclusively from the environment variable `process.env.API_KEY`
+const API_KEY = process.env.API_KEY;
+
+if (!API_KEY) {
+  // In a real app, you might want to handle this more gracefully, 
+  // but for this context, throwing an error is fine.
+  console.error("API_KEY de Google GenAI no encontrada en las variables de entorno.");
+}
+
+const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 export const getPrioritySuggestion = async (orden: OrdenProduccion): Promise<{prioridad: string, justificacion: string}> => {
+  const model = "gemini-2.5-flash";
+  const prompt = `
+    Analiza la siguiente orden de producción y sugiere una prioridad (Baja, Media, Alta).
+    Devuelve la respuesta en formato JSON con las claves "prioridad" y "justificacion".
+
+    - Producto: ${orden.nombreProducto}
+    - Cliente: ${orden.nombreCliente}
+    - Cantidad: ${orden.cantidadSolicitada}
+    - Fecha de Creación: ${orden.fechaCreacion}
+    - Estado Actual: ${orden.estado}
+    - Prioridad Actual: ${orden.prioridad}
+  `;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          prioridad: { type: Type.STRING },
+          justificacion: { type: Type.STRING },
+        },
+        required: ['prioridad', 'justificacion']
+      },
+    },
+  });
+
+  const text = response.text.trim();
   try {
-    const prompt = `
-      Eres un experto en planificación de producción. Analiza la siguiente orden de trabajo y sugiere un nivel de prioridad (Baja, Media, Alta). Justifica tu respuesta en una sola frase corta.
-      
-      Detalles de la Orden:
-      - Producto: ${orden.nombreProducto}
-      - Cliente: ${orden.nombreCliente}
-      - Cantidad: ${orden.cantidadSolicitada} unidades
-    `;
-    
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              prioridad: {
-                type: Type.STRING,
-                description: 'Nivel de prioridad sugerido: Baja, Media, o Alta.',
-              },
-              justificacion: {
-                type: Type.STRING,
-                description: 'Una frase corta que justifique la prioridad.',
-              },
-            },
-            required: ['prioridad', 'justificacion'],
-          },
-        }
-    });
-    
-    // Fix: Parse the JSON string response from Gemini to return a structured object.
-    return JSON.parse(response.text);
-  } catch (error) {
-    console.error("Error al obtener sugerencia de Gemini:", error);
-    throw new Error("No se pudo obtener la sugerencia de la IA.");
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("Error al parsear la respuesta JSON de Gemini:", e);
+    throw new Error("La respuesta de la IA no es un JSON válido.");
   }
 };
 
 export const draftClientEmail = async (orden: OrdenProduccion): Promise<string> => {
-  try {
-    const prompt = `
-      Actúa como un asistente de servicio al cliente. Redacta un correo electrónico breve y profesional para el cliente "${orden.nombreCliente}" sobre el estado de su orden de producción.
-      
-      Detalles de la Orden:
-      - ID de Orden: ${orden.id}
-      - Producto: ${orden.nombreProducto}
-      - Cantidad: ${orden.cantidadSolicitada}
-      - Estado Actual: ${orden.estado}
-      
-      El tono debe ser amigable y eficiente. No incluyas un saludo final (ej. "Atentamente").
-    `;
+  const model = "gemini-2.5-flash";
+  const prompt = `
+    Redacta un correo electrónico corto y profesional para el cliente "${orden.nombreCliente}" 
+    informándole sobre el estado actual de su orden de producción #${orden.id}.
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-    });
-    
-    return response.text;
-  } catch (error) {
-    console.error("Error al redactar email con Gemini:", error);
-    throw new Error("No se pudo redactar el borrador del correo.");
-  }
+    Detalles de la orden:
+    - Producto: ${orden.nombreProducto}
+    - Cantidad: ${orden.cantidadSolicitada}
+    - Estado Actual: ${orden.estado}
+
+    Sé amable y conciso. No incluyas un asunto, solo el cuerpo del correo.
+  `;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+  });
+  
+  return response.text;
+};
+
+export const generateJobDescription = async (cargo: string): Promise<string> => {
+  const model = "gemini-2.5-flash";
+  const prompt = `
+    Genera una descripción de responsabilidades breve (2-3 frases) para el cargo de "${cargo}" 
+    en una empresa de manufactura de productos de madera y metal.
+  `;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+  });
+
+  return response.text;
 };
