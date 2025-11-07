@@ -1,0 +1,5 @@
+{
+  "name": "ERP de Producción con IA",
+  "description": "Un panel de control para gestionar órdenes de producción, visualizar KPIs y obtener insights de IA para optimizar las operaciones. Una aplicación web React moderna para el control de producción.",
+  "requestFramePermissions": []
+}
