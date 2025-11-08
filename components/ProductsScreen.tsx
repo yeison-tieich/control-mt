@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import type { Producto } from '../types';
 import { fetchProductos } from '../services/apiService';
 import ProductDetailModal from './ProductDetailModal';
-import NewOrderModal from './NewOrderModal';
+import NewProductModal from './NewProductModal';
 
-const ProductCard: React.FC<{ producto: Producto; onClick: () => void; onCreateOrder: () => void; }> = ({ producto, onClick, onCreateOrder }) => {
+const ProductCard: React.FC<{ producto: Producto; onClick: () => void; }> = ({ producto, onClick }) => {
     return (
         <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col overflow-hidden">
             <div className="h-40 bg-gray-200 flex items-center justify-center cursor-pointer" onClick={onClick}>
@@ -18,18 +18,9 @@ const ProductCard: React.FC<{ producto: Producto; onClick: () => void; onCreateO
                 <h3 className="font-bold text-gray-800 truncate" title={producto.nombre}>{producto.nombre}</h3>
                 <p className="text-sm text-gray-500">Código: {producto.codigoProducto}</p>
             </div>
-            <div className="p-2 bg-gray-50">
-                <button 
-                    onClick={onCreateOrder}
-                    className="w-full bg-secondary text-white text-sm font-semibold px-3 py-2 rounded-md hover:bg-orange-700 transition-colors"
-                >
-                    Crear OT
-                </button>
-            </div>
         </div>
     );
 };
-
 
 const ProductsScreen: React.FC = () => {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -38,7 +29,7 @@ const ProductsScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
-  const [isNewOrderModalOpen, setNewOrderModalOpen] = useState<boolean>(false);
+  const [isNewProductModalOpen, setNewProductModalOpen] = useState<boolean>(false);
 
   const loadProducts = async () => {
       setLoading(true);
@@ -67,15 +58,10 @@ const ProductsScreen: React.FC = () => {
     );
     setFilteredProductos(filteredData);
   }, [searchTerm, productos]);
-
-  const handleCreateOrder = (producto: Producto) => {
-    setSelectedProduct(producto);
-    setNewOrderModalOpen(true);
-  };
   
   const handleDataChange = () => {
     setSelectedProduct(null);
-    setNewOrderModalOpen(false);
+    setNewProductModalOpen(false);
     loadProducts();
   }
 
@@ -83,6 +69,13 @@ const ProductsScreen: React.FC = () => {
     <>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Gestión de Productos</h1>
+        <button
+          onClick={() => setNewProductModalOpen(true)}
+          className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors flex items-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+          Añadir Producto
+        </button>
       </div>
       
       <div className="mb-6">
@@ -105,26 +98,23 @@ const ProductsScreen: React.FC = () => {
                 key={producto.id} 
                 producto={producto} 
                 onClick={() => setSelectedProduct(producto)}
-                onCreateOrder={() => handleCreateOrder(producto)}
             />
           ))}
         </div>
       )}
       
-      {selectedProduct && !isNewOrderModalOpen && (
+      {selectedProduct && (
         <ProductDetailModal 
             producto={selectedProduct} 
             onClose={() => setSelectedProduct(null)} 
-            onCreateOrder={() => handleCreateOrder(selectedProduct)}
             onDataChange={handleDataChange}
         />
       )}
 
-      {isNewOrderModalOpen && (
-        <NewOrderModal 
-            onClose={() => setNewOrderModalOpen(false)}
-            onOrderCreated={handleDataChange}
-            initialProductId={selectedProduct?.id}
+      {isNewProductModalOpen && (
+        <NewProductModal
+            onClose={() => setNewProductModalOpen(false)}
+            onProductCreated={handleDataChange}
         />
       )}
     </>

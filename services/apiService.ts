@@ -1,197 +1,238 @@
-import { API_BASE_URL } from '../constants';
-import type { 
-    OrdenProduccion, 
-    KpiData, 
-    Cliente, 
-    Producto, 
-    NewOrderData,
-    Personal,
-    NewPersonalData,
-    NewClienteData,
-    Maquina,
-    NewMaquinaData,
-    Mantenimiento,
-    NewMantenimientoData,
-    MateriaPrima,
-    NewMateriaPrimaData,
-    ControlCalidad,
-    NewControlCalidadData
+import type {
+  OrdenProduccion,
+  KpiData,
+  Producto,
+  NewProductoData,
+  Personal,
+  NewPersonalData,
+  Cliente,
+  NewClienteData,
+  Maquina,
+  NewMaquinaData,
+  Mantenimiento,
+  NewMantenimientoData,
+  MateriaPrima,
+  NewMateriaPrimaData,
+  RegistroCalidad,
+  NewRegistroCalidadData,
+  NewOrderData
 } from '../types';
 
-const handleResponse = async (response: Response) => {
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Error en la respuesta del servidor' }));
-        throw new Error(error.message || `Error: ${response.status} ${response.statusText}`);
+const API_URL = 'https://script.google.com/macros/s/AKfycbzFmqGa3J-jqX9EIPIxZJu4llCvhmfL4QxQfb7jCPS3nJfS4cZBKqhkv0G3JbGx3Sbj4A/exec';
+
+// --- Mapeo de Columnas ---
+const columnMappings: { [key: string]: { [key: string]: string } } = {
+  ordenes: {
+    'No. OT': 'id',
+    'Cliente': 'nombreCliente',
+    'Fecha de Emision': 'fecha_emision',
+    'No. Orden de Compra': 'orden_compra',
+    'Referencia': 'referencia',
+    'Descripción': 'nombreProducto',
+    'Cantidad (Unidades)': 'cantidadSolicitada',
+    'Material disponible (Sí/No)': 'material_disponible',
+    'Tiempo estimado (Días)': 'tiempo_estimado_dias',
+    'Prioridad': 'prioridad',
+    'Foto': 'foto_url',
+    'ESTADO': 'estado',
+    'OBSERVACION': 'observacion',
+    'MATERIAL': 'material',
+  },
+  productos: {
+    'id': 'id',
+    'CÓDIGO': 'codigoProducto',
+    'CODIGO NUEVO': 'codigo_nuevo',
+    'CLIENTE': 'cliente_asociado',
+    'Imagen del producto': 'imageUrl',
+    'PRODUCTO': 'nombre',
+    'MATERIAL': 'material',
+    'Ubicación en almacén': 'ubicacion_almacen',
+    'MAERIA PRIMA': 'materia_prima',
+    'CALIBRE': 'calibre',
+    'PIEZAS POR HORA': 'piezas_por_hora',
+    'ANCHO DE TIRA mm': 'ancho_tira_mm',
+    'MEDIDAS X PIEZA mm': 'medidas_pieza_mm',
+    'ACABADO': 'acabado',
+    'PIEZAS LAMINA DE 4 x 8 A': 'piezas_lamina_4x8_a',
+    'PIEZAS POR LAMINA DE 4 x 8': 'piezas_lamina_4x8',
+    'PIEZAS POR LAMINA DE 2 x 1': 'piezas_lamina_2x1',
+    'EMPAQUE DE': 'empaque_de',
+    'stock': 'stock',
+  }
+};
+
+const getReverseMapping = (mapping: { [key: string]: string }): { [key: string]: string } => {
+    const reversed: { [key: string]: string } = {};
+    for (const key in mapping) {
+        reversed[mapping[key]] = key;
     }
-    return response.json();
+    return reversed;
 };
 
-const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
-    });
-    return handleResponse(response);
+// --- Lógica Central de API ---
+
+const formatDate = (date: Date): string => {
+    const pad = (num: number) => num.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+const coerceItem = (item: any) => {
+    const coercedItem = {...item};
+    for (const key in coercedItem) {
+        if (['id', 'cantidadSolicitada', 'stock', 'cantidad', 'ordenes_completadas', 'total_ordenes', 'porcentaje_completadas', 'tiempo_estimado_dias', 'piezas_por_hora', 'ancho_tira_mm', 'piezas_lamina_4x8_a', 'piezas_lamina_4x8', 'piezas_lamina_2x1'].includes(key)) {
+            const num = Number(coercedItem[key]);
+            coercedItem[key] = isNaN(num) ? coercedItem[key] : num;
+        }
+    }
+    return coercedItem;
 };
 
-// Mock functions since we don't have a real API
-// In a real scenario, these would make actual API calls
-let mockOrdenes: OrdenProduccion[] = [
-    { id: 101, nombreProducto: 'Puerta de Cedro', nombreCliente: 'Constructora XYZ', cantidadSolicitada: 10, estado: 'En Proceso', prioridad: 'Alta', fechaCreacion: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 102, nombreProducto: 'Ventana de Aluminio', nombreCliente: 'Juan Pérez', cantidadSolicitada: 5, estado: 'Pendiente', prioridad: 'Media', fechaCreacion: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 103, nombreProducto: 'Gabinete de Cocina', nombreCliente: 'Ana García', cantidadSolicitada: 2, estado: 'Completada', prioridad: 'Baja', fechaCreacion: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
-];
+const fetchFromSheet = async <T>(sheetName: string): Promise<T[]> => {
+  const response = await fetch(`${API_URL}?sheet=${sheetName}`);
+  if (!response.ok) {
+    throw new Error(`Error al cargar datos de la hoja: ${sheetName}`);
+  }
+  const data = await response.json();
+  if (!Array.isArray(data)) {
+      throw new Error(`La respuesta de la hoja "${sheetName}" no es una lista.`);
+  }
 
-let mockProductos: Producto[] = [
-    { id: 1, nombre: 'Puerta de Cedro', codigoProducto: 'P-CED-001', imageUrl: 'https://via.placeholder.com/300x200.png?text=Puerta+Cedro', nombreMaterial: 'Madera de Cedro', acabado: 'Barnizado Natural', medidaPieza: '210x90cm', stock: 15 },
-    { id: 2, nombre: 'Ventana de Aluminio', codigoProducto: 'V-ALU-002', imageUrl: 'https://via.placeholder.com/300x200.png?text=Ventana+Aluminio', nombreMaterial: 'Aluminio Anodizado', acabado: 'Blanco', medidaPieza: '120x150cm', stock: 30 },
-];
-let mockClientes: Cliente[] = [
-    { id: 1, nombre_cliente: 'Constructora XYZ', contacto: 'Carlos Rodriguez', email: 'carlos@constructoraxyz.com' },
-    { id: 2, nombre_cliente: 'Juan Pérez', contacto: 'Juan Pérez', email: 'juan.perez@email.com' },
-    { id: 3, nombre_cliente: 'Ana García', contacto: 'Ana García', email: 'ana.garcia@email.com' },
-];
-let mockPersonal: Personal[] = [
-    { id: 1, nombreCompleto: 'Mario López', cedula: '12345678', cargo: 'Operador de Sierra' },
-    { id: 2, nombreCompleto: 'Luisa Martinez', cedula: '87654321', cargo: 'Ensambladora' },
-];
+  const mapping = columnMappings[sheetName];
+  if (!mapping) {
+      return data.map(item => coerceItem(item) as T);
+  }
 
-// In a real app, I'd remove the mock logic and use `apiFetch`
-export const fetchOrdenes = async (): Promise<OrdenProduccion[]> => {
-    console.log('Fetching Ordenes (mock)');
-    return Promise.resolve(mockOrdenes);
-    // return apiFetch('ordenes');
+  const mappedData = data.map((item: any) => {
+      const mappedItem: { [key: string]: any } = {};
+      for (const sheetHeader in item) {
+          const appKey = mapping[sheetHeader];
+          if (appKey) {
+              mappedItem[appKey] = item[sheetHeader];
+          }
+      }
+      return coerceItem(mappedItem);
+  });
+  return mappedData as T[];
 };
 
-export const fetchKpiData = async (): Promise<KpiData> => {
-    console.log('Fetching KPI Data (mock)');
-    const completadas = mockOrdenes.filter(o => o.estado === 'Completada').length;
-    const total = mockOrdenes.length;
-    return Promise.resolve({
-        total_ordenes: total,
-        ordenes_completadas: completadas,
-        porcentaje_completadas: total > 0 ? (completadas / total) * 100 : 0,
-    });
-    // return apiFetch('kpis');
+const postToSheet = async (sheetName: string, dataObject: { [key: string]: any }): Promise<any> => {
+  let newRow: { [key: string]: any } = { ...dataObject };
+  
+  const reverseMapping = getReverseMapping(columnMappings[sheetName] || {});
+  
+  if (Object.keys(reverseMapping).length > 0) {
+      newRow = {};
+      for (const appKey in dataObject) {
+          const sheetHeader = reverseMapping[appKey];
+          if (sheetHeader) {
+              newRow[sheetHeader] = dataObject[appKey];
+          }
+      }
+  }
+
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ sheetName, newRow }),
+    redirect: 'follow'
+  });
+
+  if (response.ok || response.type === 'opaque') {
+      return { success: true };
+  } else {
+      const errorText = await response.text();
+      throw new Error(`Error al enviar datos a Google Sheets: ${errorText}`);
+  }
 };
 
-export const fetchClientes = async (): Promise<Cliente[]> => {
-    console.log('Fetching Clientes (mock)');
-    return Promise.resolve(mockClientes);
-    // return apiFetch('clientes');
-};
 
-export const fetchProductos = async (): Promise<Producto[]> => {
-    console.log('Fetching Productos (mock)');
-    return Promise.resolve(mockProductos);
-    // return apiFetch('productos');
-};
+// --- Funciones de la API ---
 
-export const createOrden = async (orderData: NewOrderData): Promise<OrdenProduccion> => {
-    console.log('Creating Orden (mock)', orderData);
-    const newId = Math.max(...mockOrdenes.map(o => o.id), 0) + 1;
-    const producto = mockProductos.find(p => p.id === orderData.productoId);
-    const cliente = mockClientes.find(c => c.id === orderData.clienteId);
-    const newOrder: OrdenProduccion = {
-        id: newId,
-        nombreProducto: producto?.nombre || 'Producto Desconocido',
-        nombreCliente: cliente?.nombre_cliente || 'Cliente Desconocido',
-        cantidadSolicitada: orderData.cantidadSolicitada,
+// Ordenes de Producción
+export const fetchOrdenes = (): Promise<OrdenProduccion[]> => fetchFromSheet<OrdenProduccion>('ordenes');
+export const createOrden = async (data: NewOrderData, productos: Producto[], clientes: Cliente[]): Promise<any> => {
+    const producto = productos.find(p => p.id === data.producto_id);
+    const cliente = clientes.find(c => c.id === data.cliente_id);
+
+    if (!producto || !cliente) throw new Error("Producto o cliente no encontrado");
+
+    const newRowData = {
+        id: 'AUTOGENERATED',
+        nombreCliente: cliente.nombre_cliente,
+        fecha_emision: formatDate(new Date()),
+        orden_compra: data.orden_compra,
+        referencia: data.referencia,
+        nombreProducto: producto.nombre,
+        cantidadSolicitada: data.cantidad,
+        material_disponible: data.material_disponible,
+        tiempo_estimado_dias: data.tiempo_estimado_dias,
+        prioridad: data.prioridad,
+        foto_url: '',
         estado: 'Pendiente',
-        prioridad: orderData.prioridad === 'Urgente' ? 'Alta' : 'Media',
-        fechaCreacion: new Date().toISOString(),
+        observacion: data.observacion || '',
+        material: producto.material || '',
     };
-    mockOrdenes = [newOrder, ...mockOrdenes];
-    return Promise.resolve(newOrder);
-    // return apiFetch('ordenes', { method: 'POST', body: JSON.stringify(orderData) });
+    return postToSheet('ordenes', newRowData);
 };
 
-export const updateOrderStatus = async (orderId: number, newStatus: string): Promise<OrdenProduccion> => {
-     console.log(`Updating order ${orderId} to ${newStatus} (mock)`);
-     const orderIndex = mockOrdenes.findIndex(o => o.id === orderId);
-     if (orderIndex === -1) throw new Error('Orden no encontrada');
-     mockOrdenes[orderIndex].estado = newStatus as OrdenProduccion['estado'];
-     return Promise.resolve(mockOrdenes[orderIndex]);
-    // return apiFetch(`ordenes/${orderId}/status`, { method: 'PUT', body: JSON.stringify({ estado: newStatus }) });
+// KPIs (Calculado en el cliente)
+export const fetchKpiData = async (): Promise<KpiData> => {
+    const ordenes = await fetchOrdenes();
+    const total_ordenes = ordenes.length;
+    const ordenes_completadas = ordenes.filter(o => o.estado === 'Completada').length;
+    const porcentaje_completadas = total_ordenes > 0 ? (ordenes_completadas / total_ordenes) * 100 : 0;
+    return { total_ordenes, ordenes_completadas, porcentaje_completadas };
 };
 
-export const deleteOrden = async (orderId: number): Promise<void> => {
-    console.log(`Deleting order ${orderId} (mock)`);
-    mockOrdenes = mockOrdenes.filter(o => o.id !== orderId);
-    return Promise.resolve();
-    // return apiFetch(`ordenes/${orderId}`, { method: 'DELETE' });
+// Productos
+export const fetchProductos = (): Promise<Producto[]> => fetchFromSheet<Producto>('productos');
+export const createProducto = (data: NewProductoData): Promise<Producto> => postToSheet('productos', { ...data, id: 'AUTOGENERATED', imageUrl: '' });
+
+// Personal
+export const fetchPersonal = (): Promise<Personal[]> => fetchFromSheet<Personal>('personal');
+export const createPersonal = (data: NewPersonalData): Promise<Personal> => postToSheet('personal', { ...data, id: 'AUTOGENERATED' });
+
+// Clientes
+export const fetchClientes = (): Promise<Cliente[]> => fetchFromSheet<Cliente>('clientes');
+export const createCliente = (data: NewClienteData): Promise<Cliente> => postToSheet('clientes', { ...data, id: 'AUTOGENERATED' });
+
+// Máquinas
+export const fetchMaquinas = (): Promise<Maquina[]> => fetchFromSheet<Maquina>('maquinas');
+export const createMaquina = (data: NewMaquinaData): Promise<Maquina> => postToSheet('maquinas', { ...data, id: 'AUTOGENERATED' });
+
+// Mantenimiento
+export const fetchMantenimientos = (): Promise<Mantenimiento[]> => fetchFromSheet<Mantenimiento>('mantenimiento');
+export const createMantenimiento = async (data: NewMantenimientoData, maquinas: Maquina[]): Promise<Mantenimiento> => {
+    const maquina = maquinas.find(m => m.id === data.maquina_id);
+    if (!maquina) throw new Error('Máquina no encontrada');
+    const newRow = {
+        'id': 'AUTOGENERATED',
+        'maquina_nombre': maquina.nombre,
+        'maquina_codigo': maquina.codigo,
+        'fecha_programada': data.fecha_programada,
+        'tipo_mantenimiento': data.tipo_mantenimiento,
+        'estado': 'Programado',
+        'descripcion': data.descripcion,
+    };
+    return postToSheet('mantenimiento', newRow);
 };
 
-export const uploadProductImage = async (productId: number, imageBase64: string): Promise<Producto> => {
-    console.log(`Uploading image for product ${productId} (mock)`);
-    const productIndex = mockProductos.findIndex(p => p.id === productId);
-    if(productIndex === -1) throw new Error('Producto no encontrado');
-    mockProductos[productIndex].imageUrl = imageBase64; // In reality, this would be a URL returned from the server.
-    return Promise.resolve(mockProductos[productIndex]);
-    // return apiFetch(`productos/${productId}/image`, { method: 'POST', body: JSON.stringify({ image: imageBase64 }) });
+// Materias Primas
+export const fetchMateriasPrimas = (): Promise<MateriaPrima[]> => fetchFromSheet<MateriaPrima>('materiasPrimas');
+export const createMateriaPrima = (data: NewMateriaPrimaData): Promise<MateriaPrima> => postToSheet('materiasPrimas', { ...data, id: 'AUTOGENERATED' });
+
+// Calidad
+export const fetchRegistrosCalidad = (): Promise<RegistroCalidad[]> => fetchFromSheet<RegistroCalidad>('calidad');
+export const createRegistroCalidad = async (data: NewRegistroCalidadData, ordenes: OrdenProduccion[]): Promise<RegistroCalidad> => {
+    const orden = ordenes.find(o => o.id === data.orden_id);
+    if (!orden) throw new Error('Orden no encontrada');
+
+    const newRow = {
+        'id': 'AUTOGENERATED',
+        'orden_id': data.orden_id,
+        'producto_nombre': orden.nombreProducto,
+        'fecha_inspeccion': formatDate(new Date()),
+        'resultado': data.resultado,
+        'observaciones': data.observaciones,
+    };
+    return postToSheet('calidad', newRow);
 };
-
-export const fetchPersonal = async (): Promise<Personal[]> => {
-    console.log('Fetching Personal (mock)');
-    return Promise.resolve(mockPersonal);
-    // return apiFetch('personal');
-};
-
-export const createPersonal = async (personalData: NewPersonalData): Promise<Personal> => {
-    console.log('Creating Personal (mock)', personalData);
-    const newId = Math.max(...mockPersonal.map(p => p.id), 0) + 1;
-    const newPersonal = { id: newId, ...personalData };
-    mockPersonal.push(newPersonal);
-    return Promise.resolve(newPersonal);
-    // return apiFetch('personal', { method: 'POST', body: JSON.stringify(personalData) });
-};
-
-// Functions for other screens (placeholders)
-export const createCliente = async (clienteData: NewClienteData): Promise<Cliente> => {
-    const newId = Math.max(...mockClientes.map(c => c.id), 0) + 1;
-    const newCliente = { id: newId, ...clienteData };
-    mockClientes.push(newCliente);
-    return Promise.resolve(newCliente);
-    // return apiFetch('clientes', { method: 'POST', body: JSON.stringify(clienteData) });
-}
-
-export const fetchMaquinas = async (): Promise<Maquina[]> => {
-    return Promise.resolve([]);
-    // return apiFetch('maquinas');
-}
-export const createMaquina = async (maquinaData: NewMaquinaData): Promise<Maquina> => {
-    return Promise.resolve({ id: 99, ...maquinaData });
-    // return apiFetch('maquinas', { method: 'POST', body: JSON.stringify(maquinaData) });
-}
-
-export const fetchMantenimientos = async (): Promise<Mantenimiento[]> => {
-    return Promise.resolve([]);
-    // return apiFetch('mantenimientos');
-}
-export const createMantenimiento = async (mantenimientoData: NewMantenimientoData): Promise<Mantenimiento> => {
-    const mockMantenimiento = { id: 99, maquinaNombre: 'Torno CNC', estado: 'Programado' as const, ...mantenimientoData };
-    return Promise.resolve(mockMantenimiento);
-    // return apiFetch('mantenimientos', { method: 'POST', body: JSON.stringify(mantenimientoData) });
-}
-
-export const fetchMateriasPrimas = async (): Promise<MateriaPrima[]> => {
-    return Promise.resolve([]);
-    // return apiFetch('materias-primas');
-}
-export const createMateriaPrima = async (data: NewMateriaPrimaData): Promise<MateriaPrima> => {
-    return Promise.resolve({ id: 99, ...data });
-    // return apiFetch('materias-primas', { method: 'POST', body: JSON.stringify(data) });
-}
-
-export const fetchControlesCalidad = async (): Promise<ControlCalidad[]> => {
-    return Promise.resolve([]);
-    // return apiFetch('calidad');
-}
-export const createControlCalidad = async (data: NewControlCalidadData): Promise<ControlCalidad> => {
-    const mockCalidad = { id: 99, productoNombre: 'Puerta de Cedro', fechaInspeccion: new Date().toISOString(), ...data };
-    return Promise.resolve(mockCalidad);
-    // return apiFetch('calidad', { method: 'POST', body: JSON.stringify(data) });
-}

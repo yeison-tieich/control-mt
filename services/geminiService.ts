@@ -2,15 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { OrdenProduccion } from "../types";
 
 // The API key MUST be obtained exclusively from the environment variable `process.env.API_KEY`
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  // In a real app, you might want to handle this more gracefully, 
-  // but for this context, throwing an error is fine.
-  console.error("API_KEY de Google GenAI no encontrada en las variables de entorno.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getPrioritySuggestion = async (orden: OrdenProduccion): Promise<{prioridad: string, justificacion: string}> => {
   const model = "gemini-2.5-flash";
@@ -21,7 +13,7 @@ export const getPrioritySuggestion = async (orden: OrdenProduccion): Promise<{pr
     - Producto: ${orden.nombreProducto}
     - Cliente: ${orden.nombreCliente}
     - Cantidad: ${orden.cantidadSolicitada}
-    - Fecha de Creación: ${orden.fechaCreacion}
+    - Fecha de Emisión: ${orden.fecha_emision}
     - Estado Actual: ${orden.estado}
     - Prioridad Actual: ${orden.prioridad}
   `;

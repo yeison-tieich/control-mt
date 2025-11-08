@@ -64,6 +64,11 @@ const Dashboard: React.FC = () => {
     loadData();
   }, [loadData]);
 
+  const handleOrderCreated = () => {
+    setNewOrderModalOpen(false);
+    loadData();
+  };
+
   if (loading && !kpiData) {
     return <div className="flex justify-center items-center h-full"><div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div></div>;
   }
@@ -96,10 +101,10 @@ const Dashboard: React.FC = () => {
 
       <button
         onClick={() => setNewOrderModalOpen(true)}
-        className="fixed bottom-8 right-8 bg-secondary text-white rounded-full p-4 shadow-lg hover:bg-orange-700 transition-colors"
-        aria-label="Nueva Orden"
+        className="fixed bottom-8 right-8 bg-secondary text-white rounded-full p-4 shadow-lg hover:bg-orange-600 transition-transform transform hover:scale-110"
+        aria-label="Crear nueva orden"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
       </button>
 
       {selectedOrder && (
@@ -115,11 +120,8 @@ const Dashboard: React.FC = () => {
 
       {isNewOrderModalOpen && (
         <NewOrderModal 
-            onClose={() => setNewOrderModalOpen(false)}
-            onOrderCreated={() => {
-                setNewOrderModalOpen(false);
-                loadData();
-            }}
+          onClose={() => setNewOrderModalOpen(false)}
+          onOrderCreated={handleOrderCreated}
         />
       )}
     </>

@@ -1,32 +1,49 @@
-import React, { useState } from 'react';
-import { createControlCalidad } from '../services/apiService';
-import type { NewControlCalidadData } from '../types';
+import React, { useState, useEffect } from 'react';
+import { createRegistroCalidad, fetchOrdenes } from '../services/apiService';
+import type { NewRegistroCalidadData, OrdenProduccion } from '../types';
 
 interface Props { onClose: () => void; onCreated: () => void; }
 
 const Spinner: React.FC = () => <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>;
 
 const NewCalidadModal: React.FC<Props> = ({ onClose, onCreated }) => {
+  const [ordenes, setOrdenes] = useState<OrdenProduccion[]>([]);
   const [ordenId, setOrdenId] = useState('');
   const [resultado, setResultado] = useState<'Aprobado' | 'Rechazado'>('Aprobado');
   const [observaciones, setObservaciones] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    const loadOrdenes = async () => {
+        try {
+            const data = await fetchOrdenes();
+            const filteredOrdenes = data.filter(o => o.estado !== 'Pendiente');
+            setOrdenes(filteredOrdenes);
+            if (filteredOrdenes.length > 0) {
+                setOrdenId(filteredOrdenes[0].id.toString());
+            }
+        } catch(err) {
+            setError('Error al cargar las órdenes de producción');
+        }
+    }
+    loadOrdenes();
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ordenId) {
-        setError('El ID de la orden es obligatorio.');
+        setError('Debe seleccionar una orden.');
         return;
     }
     setError('');
     setLoading(true);
     try {
-        const data: NewControlCalidadData = { ordenId: parseInt(ordenId, 10), resultado, observaciones };
-        await createControlCalidad(data);
+        const data: NewRegistroCalidadData = { orden_id: parseInt(ordenId), resultado, observaciones };
+        await createRegistroCalidad(data, ordenes);
         onCreated();
     } catch (err: any) {
-        setError(err.message || 'Error al registrar la inspección.');
+        setError(err.message || 'Error al crear el registro.');
     } finally {
         setLoading(false);
     }
@@ -35,26 +52,29 @@ const NewCalidadModal: React.FC<Props> = ({ onClose, onCreated }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-         <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-primary">Registrar Inspección de Calidad</h2>
+        <div className="p-4 border-b flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-primary">Nuevo Registro de Calidad</h2>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <p className="text-sm text-center text-red-500 bg-red-50 p-3 rounded-lg">{error}</p>}
+          
           <div>
-            <label className="block text-sm font-medium text-gray-700">ID de Orden</label>
-            <input type="number" value={ordenId} onChange={e => setOrdenId(e.target.value)} className="mt-1 w-full p-2 border border-gray-300 rounded-md" />
+            <label className="block text-sm font-medium text-gray-700">Orden de Producción</label>
+            <select value={ordenId} onChange={e => setOrdenId(e.target.value)} className="mt-1 w-full p-2 border border-gray-300 rounded-md">
+                {ordenes.map(o => <option key={o.id} value={o.id}>#{o.id} - {o.nombreProducto}</option>)}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Resultado</label>
             <select value={resultado} onChange={e => setResultado(e.target.value as any)} className="mt-1 w-full p-2 border border-gray-300 rounded-md">
-                <option value="Aprobado">Aprobado</option>
-                <option value="Rechazado">Rechazado</option>
+              <option value="Aprobado">Aprobado</option>
+              <option value="Rechazado">Rechazado</option>
             </select>
           </div>
-          <div>
+           <div>
             <label className="block text-sm font-medium text-gray-700">Observaciones</label>
-            <textarea value={observaciones} onChange={e => setObservaciones(e.target.value)} className="mt-1 w-full p-2 border border-gray-300 rounded-md" />
+            <textarea value={observaciones} onChange={e => setObservaciones(e.target.value)} className="mt-1 w-full p-2 border border-gray-300 rounded-md" rows={3}></textarea>
           </div>
           <div className="pt-2 flex justify-end space-x-3">
              <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300">Cancelar</button>

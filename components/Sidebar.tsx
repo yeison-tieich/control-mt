@@ -11,7 +11,8 @@ const NavItem: React.FC<{
   screen: Screen;
   activeScreen: Screen;
   setActiveScreen: (screen: Screen) => void;
-  icon: JSX.Element;
+  // Fix: Changed icon type from JSX.Element to React.ReactNode to avoid namespace issues.
+  icon: React.ReactNode;
 }> = ({ label, screen, activeScreen, setActiveScreen, icon }) => {
   const isActive = activeScreen === screen;
   return (
