@@ -6,7 +6,7 @@ import { parseDate } from '../utils/dateUtils';
 // Icon Components
 const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
 const CopyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>;
-const TimerIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const TimerIcon = () => <svg xmlns="http://www.w.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 
 interface OrderDetailModalProps {
   orden: OrdenProduccion;
@@ -29,13 +29,12 @@ const formatDuration = (milliseconds: number): string => {
 const DetailItem: React.FC<{label: string, value: React.ReactNode}> = ({label, value}) => (
     <div className="bg-gray-50 p-3 rounded-lg">
         <p className="text-sm font-medium text-gray-500">{label}</p>
-        <p className="text-md font-semibold text-gray-800">{value}</p>
+        <p className="text-md font-semibold text-gray-800 break-words">{value}</p>
     </div>
 );
 
 
 const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ orden, onClose, onDataChange }) => {
-  const [currentOrder, setCurrentOrder] = useState(orden);
   const [elapsedTime, setElapsedTime] = useState('');
   const [priorityLoading, setPriorityLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
@@ -45,9 +44,9 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ orden, onClose, onD
 
   useEffect(() => {
     let timer: number | undefined;
-    const parsedDate = parseDate(currentOrder.fecha_emision);
+    const parsedDate = parseDate(orden.fecha_emision);
 
-    if (parsedDate && (currentOrder.estado === 'En Proceso' || currentOrder.estado === 'Pendiente')) {
+    if (parsedDate && (orden.estado === 'En Proceso' || orden.estado === 'Pendiente')) {
         timer = window.setInterval(() => {
             const startTime = parsedDate.getTime();
             const now = new Date().getTime();
@@ -59,14 +58,14 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ orden, onClose, onD
     return () => {
         if (timer) window.clearInterval(timer);
     };
-  }, [currentOrder.estado, currentOrder.fecha_emision]);
+  }, [orden.estado, orden.fecha_emision]);
 
   const handleGetPriority = async () => {
     setPriorityLoading(true);
     setGeneralError('');
     setAiPriority(null);
     try {
-      const result = await getPrioritySuggestion(currentOrder);
+      const result = await getPrioritySuggestion(orden);
       setAiPriority(result);
     } catch (error) {
       setGeneralError('Error al obtener sugerencia de prioridad.');
@@ -80,7 +79,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ orden, onClose, onD
     setGeneralError('');
     setAiEmail('');
     try {
-      const result = await draftClientEmail(currentOrder);
+      const result = await draftClientEmail(orden);
       setAiEmail(result);
     } catch (error) {
       setGeneralError('Error al redactar el correo.');
@@ -89,14 +88,14 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ orden, onClose, onD
     }
   };
   
-  const creationDate = parseDate(currentOrder.fecha_emision);
+  const creationDate = parseDate(orden.fecha_emision);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="p-4 sticky top-0 bg-white border-b border-gray-200 z-10">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-primary">Detalle de Orden #{currentOrder.id}</h2>
+            <h2 className="text-2xl font-bold text-primary">Detalle de Orden #{orden.no_ot}</h2>
             <div className="flex items-center space-x-2">
                 <button className="text-gray-500 hover:text-primary p-2 rounded-full cursor-not-allowed" title="Editar (Próximamente)" disabled><EditIcon/></button>
                 <button className="text-gray-500 hover:text-primary p-2 rounded-full cursor-not-allowed" title="Duplicar (Próximamente)" disabled><CopyIcon/></button>
@@ -118,26 +117,28 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ orden, onClose, onD
           )}
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-gray-700">
-            <DetailItem label="Producto" value={currentOrder.nombreProducto} />
-            <DetailItem label="Cliente" value={currentOrder.nombreCliente} />
-            <DetailItem label="Cantidad" value={`${currentOrder.cantidadSolicitada} un.`} />
-            <DetailItem label="No. Orden Compra" value={currentOrder.orden_compra} />
-            <DetailItem label="Referencia" value={currentOrder.referencia} />
-            <DetailItem label="Prioridad Actual" value={currentOrder.prioridad} />
-            <DetailItem label="Material" value={currentOrder.material || 'N/A'} />
-            <DetailItem label="Material Disponible" value={currentOrder.material_disponible} />
-            <DetailItem label="Tiempo Estimado" value={`${currentOrder.tiempo_estimado_dias} días`} />
+            <div className="md:col-span-3">
+                <DetailItem label="Descripción" value={orden.descripcion} />
+            </div>
+            <DetailItem label="Cliente" value={orden.cliente} />
+            <DetailItem label="Cantidad" value={`${orden.cantidad_unidades} un.`} />
+            <DetailItem label="Prioridad Actual" value={orden.prioridad} />
+            <DetailItem label="No. Orden Compra" value={orden.no_orden_compra} />
+            <DetailItem label="Referencia" value={orden.referencia} />
+            <DetailItem label="Tiempo Estimado" value={`${orden.tiempo_estimado_dias} días`} />
+            <DetailItem label="Material" value={orden.material || 'N/A'} />
+            <DetailItem label="Material Disponible" value={orden.material_disponible} />
             <div className="md:col-span-3">
                  <DetailItem label="Fecha de Emisión" value={creationDate ? creationDate.toLocaleString() : 'Fecha inválida'} />
             </div>
              <div className="md:col-span-3">
-                 <DetailItem label="Observaciones" value={currentOrder.observacion || 'Sin observaciones.'} />
+                 <DetailItem label="Observaciones" value={orden.observacion || 'Sin observaciones.'} />
             </div>
           </div>
 
           <div className="pt-4 border-t">
               <h4 className="font-bold text-gray-800 mb-2">Estado Actual</h4>
-              <p className="font-bold text-primary text-lg">{currentOrder.estado}</p>
+              <p className="font-bold text-primary text-lg">{orden.estado}</p>
           </div>
           
           <div className="space-y-4 pt-4 border-t">

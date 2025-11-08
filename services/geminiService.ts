@@ -10,9 +10,9 @@ export const getPrioritySuggestion = async (orden: OrdenProduccion): Promise<{pr
     Analiza la siguiente orden de producción y sugiere una prioridad (Baja, Media, Alta).
     Devuelve la respuesta en formato JSON con las claves "prioridad" y "justificacion".
 
-    - Producto: ${orden.nombreProducto}
-    - Cliente: ${orden.nombreCliente}
-    - Cantidad: ${orden.cantidadSolicitada}
+    - Producto: ${orden.descripcion}
+    - Cliente: ${orden.cliente}
+    - Cantidad: ${orden.cantidad_unidades}
     - Fecha de Emisión: ${orden.fecha_emision}
     - Estado Actual: ${orden.estado}
     - Prioridad Actual: ${orden.prioridad}
@@ -46,12 +46,12 @@ export const getPrioritySuggestion = async (orden: OrdenProduccion): Promise<{pr
 export const draftClientEmail = async (orden: OrdenProduccion): Promise<string> => {
   const model = "gemini-2.5-flash";
   const prompt = `
-    Redacta un correo electrónico corto y profesional para el cliente "${orden.nombreCliente}" 
-    informándole sobre el estado actual de su orden de producción #${orden.id}.
+    Redacta un correo electrónico corto y profesional para el cliente "${orden.cliente}" 
+    informándole sobre el estado actual de su orden de producción #${orden.no_ot}.
 
     Detalles de la orden:
-    - Producto: ${orden.nombreProducto}
-    - Cantidad: ${orden.cantidadSolicitada}
+    - Producto: ${orden.descripcion}
+    - Cantidad: ${orden.cantidad_unidades}
     - Estado Actual: ${orden.estado}
 
     Sé amable y conciso. No incluyas un asunto, solo el cuerpo del correo.

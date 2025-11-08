@@ -8,15 +8,15 @@ const ProductCard: React.FC<{ producto: Producto; onClick: () => void; }> = ({ p
     return (
         <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col overflow-hidden">
             <div className="h-40 bg-gray-200 flex items-center justify-center cursor-pointer" onClick={onClick}>
-                {producto.imageUrl ? (
-                    <img src={producto.imageUrl} alt={producto.nombre} className="h-full w-full object-cover" />
+                {producto.imagen_producto ? (
+                    <img src={producto.imagen_producto} alt={producto.producto} className="h-full w-full object-cover" />
                 ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <svg xmlns="http://www.w.org/2000/svg" className="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 )}
             </div>
             <div className="p-4 flex-grow">
-                <h3 className="font-bold text-gray-800 truncate" title={producto.nombre}>{producto.nombre}</h3>
-                <p className="text-sm text-gray-500">Código: {producto.codigoProducto}</p>
+                <h3 className="font-bold text-gray-800 truncate" title={producto.producto}>{producto.producto}</h3>
+                <p className="text-sm text-gray-500">Código: {producto.codigo}</p>
             </div>
         </div>
     );
@@ -53,8 +53,8 @@ const ProductsScreen: React.FC = () => {
   useEffect(() => {
     const lowercasedFilter = searchTerm.toLowerCase();
     const filteredData = productos.filter(item =>
-        item.nombre.toLowerCase().includes(lowercasedFilter) ||
-        item.codigoProducto.toLowerCase().includes(lowercasedFilter)
+        item.producto.toLowerCase().includes(lowercasedFilter) ||
+        item.codigo.toLowerCase().includes(lowercasedFilter)
     );
     setFilteredProductos(filteredData);
   }, [searchTerm, productos]);
@@ -73,7 +73,7 @@ const ProductsScreen: React.FC = () => {
           onClick={() => setNewProductModalOpen(true)}
           className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors flex items-center"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+          <svg xmlns="http://www.w.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
           Añadir Producto
         </button>
       </div>
@@ -95,7 +95,7 @@ const ProductsScreen: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {filteredProductos.map((producto) => (
             <ProductCard 
-                key={producto.id} 
+                key={producto.codigo} 
                 producto={producto} 
                 onClick={() => setSelectedProduct(producto)}
             />

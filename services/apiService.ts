@@ -1,238 +1,114 @@
-import type {
-  OrdenProduccion,
-  KpiData,
-  Producto,
-  NewProductoData,
-  Personal,
-  NewPersonalData,
-  Cliente,
-  NewClienteData,
-  Maquina,
-  NewMaquinaData,
-  Mantenimiento,
-  NewMantenimientoData,
-  MateriaPrima,
-  NewMateriaPrimaData,
-  RegistroCalidad,
-  NewRegistroCalidadData,
-  NewOrderData
+import type { 
+    OrdenProduccion, KpiData, Producto, NewProductoData, Cliente, NewClienteData,
+    NewOrderData, Personal, NewPersonalData, Maquina, NewMaquinaData,
+    Mantenimiento, NewMantenimientoData, MateriaPrima, NewMateriaPrimaData,
+    RegistroCalidad, NewRegistroCalidadData
 } from '../types';
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbzFmqGa3J-jqX9EIPIxZJu4llCvhmfL4QxQfb7jCPS3nJfS4cZBKqhkv0G3JbGx3Sbj4A/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzFmqGa3J-jqX9EIPIxZJu4llCvhmfL4QxQfb7jCPS3nJfS4cZBKqhkv0G3JbGx3Sbj4A/exec';
 
-// --- Mapeo de Columnas ---
-const columnMappings: { [key: string]: { [key: string]: string } } = {
-  ordenes: {
-    'No. OT': 'id',
-    'Cliente': 'nombreCliente',
-    'Fecha de Emision': 'fecha_emision',
-    'No. Orden de Compra': 'orden_compra',
-    'Referencia': 'referencia',
-    'Descripción': 'nombreProducto',
-    'Cantidad (Unidades)': 'cantidadSolicitada',
-    'Material disponible (Sí/No)': 'material_disponible',
-    'Tiempo estimado (Días)': 'tiempo_estimado_dias',
-    'Prioridad': 'prioridad',
-    'Foto': 'foto_url',
-    'ESTADO': 'estado',
-    'OBSERVACION': 'observacion',
-    'MATERIAL': 'material',
-  },
-  productos: {
-    'id': 'id',
-    'CÓDIGO': 'codigoProducto',
-    'CODIGO NUEVO': 'codigo_nuevo',
-    'CLIENTE': 'cliente_asociado',
-    'Imagen del producto': 'imageUrl',
-    'PRODUCTO': 'nombre',
-    'MATERIAL': 'material',
-    'Ubicación en almacén': 'ubicacion_almacen',
-    'MAERIA PRIMA': 'materia_prima',
-    'CALIBRE': 'calibre',
-    'PIEZAS POR HORA': 'piezas_por_hora',
-    'ANCHO DE TIRA mm': 'ancho_tira_mm',
-    'MEDIDAS X PIEZA mm': 'medidas_pieza_mm',
-    'ACABADO': 'acabado',
-    'PIEZAS LAMINA DE 4 x 8 A': 'piezas_lamina_4x8_a',
-    'PIEZAS POR LAMINA DE 4 x 8': 'piezas_lamina_4x8',
-    'PIEZAS POR LAMINA DE 2 x 1': 'piezas_lamina_2x1',
-    'EMPAQUE DE': 'empaque_de',
-    'stock': 'stock',
-  }
+const SHEET_NAMES = {
+    ordenes: 'ordenes',
+    productos: 'productos',
+    personal: 'personal',
+    maquinas: 'maquinas',
+    clientes: 'clientes',
+    mantenimiento: 'mantenimiento',
+    calidad: 'calidad',
+    materiasPrimas: 'materiasPrimas'
 };
 
-const getReverseMapping = (mapping: { [key: string]: string }): { [key: string]: string } => {
-    const reversed: { [key: string]: string } = {};
-    for (const key in mapping) {
-        reversed[mapping[key]] = key;
-    }
-    return reversed;
+const COLUMN_MAPPINGS = {
+    [SHEET_NAMES.ordenes]: { 'No. OT': 'no_ot', 'Cliente': 'cliente', 'Fecha de Emision': 'fecha_emision', 'No. Orden de Compra': 'no_orden_compra', 'Referencia': 'referencia', 'Descripción': 'descripcion', 'Cantidad (Unidades)': 'cantidad_unidades', 'Material disponible (Sí/No)': 'material_disponible', 'Tiempo estimado (Días)': 'tiempo_estimado_dias', 'Prioridad': 'prioridad', 'Foto': 'foto', 'ESTADO': 'estado', 'OBSERVACION': 'observacion', 'MATERIAL': 'material' },
+    [SHEET_NAMES.productos]: { 'CÓDIGO': 'codigo', 'CODIGO NUEVO': 'codigo_nuevo', 'CLIENTE': 'cliente', 'Imagen del producto': 'imagen_producto', 'PRODUCTO': 'producto', 'MATERIAL': 'material', 'Ubicación en almacén': 'ubicacion_almacen', 'MAERIA PRIMA': 'materia_prima', 'CALIBRE': 'calibre', 'PIEZAS POR HORA': 'piezas_por_hora', 'ANCHO DE TIRA mm': 'ancho_tira_mm', 'MEDIDAS X PIEZA mm': 'medidas_pieza_mm', 'ACABADO': 'acabado', 'PIEZAS LAMINA DE 4 x 8 A': 'piezas_lamina_4x8_a', 'PIEZAS POR LAMINA DE 4 x 8': 'piezas_por_lamina_4x8', 'PIEZAS POR LAMINA DE 2 x 1': 'piezas_por_lamina_2x1', 'EMPAQUE DE': 'empaque_de' },
+    [SHEET_NAMES.personal]: { 'NOMBRE': 'nombre', 'CEDULA': 'cedula', 'CARGO': 'cargo' },
+    [SHEET_NAMES.maquinas]: { 'COD. ACTUAL': 'cod_actual', 'DESCRIPCIÓN': 'descripcion', 'ADQUIRIDA EN': 'adquirida_en', 'ESTADO': 'estado', 'OBSERVACIONES': 'observaciones' },
+    [SHEET_NAMES.clientes]: { 'ID': 'id', 'NOMBRE': 'nombre', 'EMPRESA': 'empresa', 'NIT': 'nit' },
+    [SHEET_NAMES.mantenimiento]: { 'ID Mantenimiento': 'id_mantenimiento', 'Máquina/Equipo': 'maquina_equipo', 'Tipo de mantenimiento (Preventivo/Correctivo)': 'tipo_mantenimiento', 'Fecha programada': 'fecha_programada', 'Estado': 'estado', 'Técnico responsable': 'tecnico_responsable', 'Descripción del mantenimiento': 'descripcion_mantenimiento', 'Insumos utilizados': 'insumos_utilizados', 'Foto': 'foto', 'Observaciones': 'observaciones' },
+    [SHEET_NAMES.calidad]: { 'ID REG CALIDAD': 'id_reg_calidad', 'No. OT': 'no_ot', 'Proceso inspeccionado': 'proceso_inspeccionado', 'Pieza': 'pieza', 'RESPONSABLE': 'responsable', 'Tipo de verificacion': 'tipo_verificacion', 'VERIFICACION VISUAL': 'verificacion_visual', 'Medida 1': 'medida_1', 'Medida 2': 'medida_2', 'Aprobado / Rechazado': 'aprobado_rechazado', 'Fecha hora de inspeccion': 'fecha_hora_inspeccion', 'FOTO': 'foto', 'Observaciones': 'observaciones', 'Firma': 'firma' },
+    [SHEET_NAMES.materiasPrimas]: { 'MATERIAL': 'material', 'Descripción': 'descripcion', 'FOTO': 'foto', 'Cantidad en stock': 'cantidad_stock', 'Unidad de medida': 'unidad_medida', 'Peso unitario (K)': 'peso_unitario_k', 'Proveedor': 'proveedor', 'Fecha de ingreso': 'fecha_ingreso', 'Fecha de consumo': 'fecha_consumo', 'Peso (K)': 'peso_k', 'Estado (Disponible/Reservado)': 'estado' }
 };
 
-// --- Lógica Central de API ---
+const getReverseMapping = (sheetName: string) => Object.fromEntries(Object.entries(COLUMN_MAPPINGS[sheetName]).map(([k, v]) => [v, k]));
 
-const formatDate = (date: Date): string => {
-    const pad = (num: number) => num.toString().padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
-
-const coerceItem = (item: any) => {
-    const coercedItem = {...item};
-    for (const key in coercedItem) {
-        if (['id', 'cantidadSolicitada', 'stock', 'cantidad', 'ordenes_completadas', 'total_ordenes', 'porcentaje_completadas', 'tiempo_estimado_dias', 'piezas_por_hora', 'ancho_tira_mm', 'piezas_lamina_4x8_a', 'piezas_lamina_4x8', 'piezas_lamina_2x1'].includes(key)) {
-            const num = Number(coercedItem[key]);
-            coercedItem[key] = isNaN(num) ? coercedItem[key] : num;
+const transformData = (data: any[], sheetName: string) => {
+    const mapping = COLUMN_MAPPINGS[sheetName];
+    if (!mapping) return data;
+    return data.map(row => {
+        const newRow: { [key: string]: any } = {};
+        for (const key in row) {
+            const newKey = mapping[key] || key;
+            newRow[newKey] = row[key];
         }
+        return newRow;
+    });
+};
+
+const apiGet = async <T>(sheetName: string): Promise<T> => {
+    try {
+        const response = await fetch(`${SCRIPT_URL}?sheet=${sheetName}`);
+        if (!response.ok) throw new Error(`Error fetching ${sheetName}: ${response.statusText}`);
+        const data = await response.json();
+        return transformData(data, sheetName) as T;
+    } catch (error) {
+        console.error(`API GET Error for ${sheetName}:`, error);
+        throw error;
     }
-    return coercedItem;
 };
 
-const fetchFromSheet = async <T>(sheetName: string): Promise<T[]> => {
-  const response = await fetch(`${API_URL}?sheet=${sheetName}`);
-  if (!response.ok) {
-    throw new Error(`Error al cargar datos de la hoja: ${sheetName}`);
-  }
-  const data = await response.json();
-  if (!Array.isArray(data)) {
-      throw new Error(`La respuesta de la hoja "${sheetName}" no es una lista.`);
-  }
+const apiPost = async (sheetName: string, data: any): Promise<any> => {
+    const reverseMapping = getReverseMapping(sheetName);
+    const newRow: { [key: string]: any } = {};
+    for (const key in data) {
+        const newKey = reverseMapping[key] || key;
+        newRow[newKey] = data[key];
+    }
 
-  const mapping = columnMappings[sheetName];
-  if (!mapping) {
-      return data.map(item => coerceItem(item) as T);
-  }
-
-  const mappedData = data.map((item: any) => {
-      const mappedItem: { [key: string]: any } = {};
-      for (const sheetHeader in item) {
-          const appKey = mapping[sheetHeader];
-          if (appKey) {
-              mappedItem[appKey] = item[sheetHeader];
-          }
-      }
-      return coerceItem(mappedItem);
-  });
-  return mappedData as T[];
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Apps Script web apps often require this
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sheetName, newRow }),
+        });
+        // Since it's no-cors, we can't read the response, so we optimistically return success
+        return { success: true };
+    } catch (error) {
+        console.error(`API POST Error for ${sheetName}:`, error);
+        throw error;
+    }
 };
 
-const postToSheet = async (sheetName: string, dataObject: { [key: string]: any }): Promise<any> => {
-  let newRow: { [key: string]: any } = { ...dataObject };
-  
-  const reverseMapping = getReverseMapping(columnMappings[sheetName] || {});
-  
-  if (Object.keys(reverseMapping).length > 0) {
-      newRow = {};
-      for (const appKey in dataObject) {
-          const sheetHeader = reverseMapping[appKey];
-          if (sheetHeader) {
-              newRow[sheetHeader] = dataObject[appKey];
-          }
-      }
-  }
+// API Functions
+export const fetchOrdenes = (): Promise<OrdenProduccion[]> => apiGet<OrdenProduccion[]>(SHEET_NAMES.ordenes);
+export const createOrden = (data: NewOrderData) => apiPost(SHEET_NAMES.ordenes, data);
 
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({ sheetName, newRow }),
-    redirect: 'follow'
-  });
+export const fetchProductos = (): Promise<Producto[]> => apiGet<Producto[]>(SHEET_NAMES.productos);
+export const createProducto = (data: NewProductoData) => apiPost(SHEET_NAMES.productos, data);
 
-  if (response.ok || response.type === 'opaque') {
-      return { success: true };
-  } else {
-      const errorText = await response.text();
-      throw new Error(`Error al enviar datos a Google Sheets: ${errorText}`);
-  }
-};
+export const fetchPersonal = (): Promise<Personal[]> => apiGet<Personal[]>(SHEET_NAMES.personal);
+export const createPersonal = (data: NewPersonalData) => apiPost(SHEET_NAMES.personal, data);
 
+export const fetchMaquinas = (): Promise<Maquina[]> => apiGet<Maquina[]>(SHEET_NAMES.maquinas);
+export const createMaquina = (data: NewMaquinaData) => apiPost(SHEET_NAMES.maquinas, data);
 
-// --- Funciones de la API ---
+export const fetchClientes = (): Promise<Cliente[]> => apiGet<Cliente[]>(SHEET_NAMES.clientes);
+export const createCliente = (data: NewClienteData) => apiPost(SHEET_NAMES.clientes, data);
 
-// Ordenes de Producción
-export const fetchOrdenes = (): Promise<OrdenProduccion[]> => fetchFromSheet<OrdenProduccion>('ordenes');
-export const createOrden = async (data: NewOrderData, productos: Producto[], clientes: Cliente[]): Promise<any> => {
-    const producto = productos.find(p => p.id === data.producto_id);
-    const cliente = clientes.find(c => c.id === data.cliente_id);
+export const fetchMantenimientos = (): Promise<Mantenimiento[]> => apiGet<Mantenimiento[]>(SHEET_NAMES.mantenimiento);
+export const createMantenimiento = (data: NewMantenimientoData) => apiPost(SHEET_NAMES.mantenimiento, data);
 
-    if (!producto || !cliente) throw new Error("Producto o cliente no encontrado");
+export const fetchControlesCalidad = (): Promise<RegistroCalidad[]> => apiGet<RegistroCalidad[]>(SHEET_NAMES.calidad);
+export const createControlCalidad = (data: NewRegistroCalidadData) => apiPost(SHEET_NAMES.calidad, data);
 
-    const newRowData = {
-        id: 'AUTOGENERATED',
-        nombreCliente: cliente.nombre_cliente,
-        fecha_emision: formatDate(new Date()),
-        orden_compra: data.orden_compra,
-        referencia: data.referencia,
-        nombreProducto: producto.nombre,
-        cantidadSolicitada: data.cantidad,
-        material_disponible: data.material_disponible,
-        tiempo_estimado_dias: data.tiempo_estimado_dias,
-        prioridad: data.prioridad,
-        foto_url: '',
-        estado: 'Pendiente',
-        observacion: data.observacion || '',
-        material: producto.material || '',
-    };
-    return postToSheet('ordenes', newRowData);
-};
+export const fetchMateriasPrimas = (): Promise<MateriaPrima[]> => apiGet<MateriaPrima[]>(SHEET_NAMES.materiasPrimas);
+export const createMateriaPrima = (data: NewMateriaPrimaData) => apiPost(SHEET_NAMES.materiasPrimas, data);
 
-// KPIs (Calculado en el cliente)
+// Client-side KPI calculation
 export const fetchKpiData = async (): Promise<KpiData> => {
     const ordenes = await fetchOrdenes();
     const total_ordenes = ordenes.length;
     const ordenes_completadas = ordenes.filter(o => o.estado === 'Completada').length;
     const porcentaje_completadas = total_ordenes > 0 ? (ordenes_completadas / total_ordenes) * 100 : 0;
     return { total_ordenes, ordenes_completadas, porcentaje_completadas };
-};
-
-// Productos
-export const fetchProductos = (): Promise<Producto[]> => fetchFromSheet<Producto>('productos');
-export const createProducto = (data: NewProductoData): Promise<Producto> => postToSheet('productos', { ...data, id: 'AUTOGENERATED', imageUrl: '' });
-
-// Personal
-export const fetchPersonal = (): Promise<Personal[]> => fetchFromSheet<Personal>('personal');
-export const createPersonal = (data: NewPersonalData): Promise<Personal> => postToSheet('personal', { ...data, id: 'AUTOGENERATED' });
-
-// Clientes
-export const fetchClientes = (): Promise<Cliente[]> => fetchFromSheet<Cliente>('clientes');
-export const createCliente = (data: NewClienteData): Promise<Cliente> => postToSheet('clientes', { ...data, id: 'AUTOGENERATED' });
-
-// Máquinas
-export const fetchMaquinas = (): Promise<Maquina[]> => fetchFromSheet<Maquina>('maquinas');
-export const createMaquina = (data: NewMaquinaData): Promise<Maquina> => postToSheet('maquinas', { ...data, id: 'AUTOGENERATED' });
-
-// Mantenimiento
-export const fetchMantenimientos = (): Promise<Mantenimiento[]> => fetchFromSheet<Mantenimiento>('mantenimiento');
-export const createMantenimiento = async (data: NewMantenimientoData, maquinas: Maquina[]): Promise<Mantenimiento> => {
-    const maquina = maquinas.find(m => m.id === data.maquina_id);
-    if (!maquina) throw new Error('Máquina no encontrada');
-    const newRow = {
-        'id': 'AUTOGENERATED',
-        'maquina_nombre': maquina.nombre,
-        'maquina_codigo': maquina.codigo,
-        'fecha_programada': data.fecha_programada,
-        'tipo_mantenimiento': data.tipo_mantenimiento,
-        'estado': 'Programado',
-        'descripcion': data.descripcion,
-    };
-    return postToSheet('mantenimiento', newRow);
-};
-
-// Materias Primas
-export const fetchMateriasPrimas = (): Promise<MateriaPrima[]> => fetchFromSheet<MateriaPrima>('materiasPrimas');
-export const createMateriaPrima = (data: NewMateriaPrimaData): Promise<MateriaPrima> => postToSheet('materiasPrimas', { ...data, id: 'AUTOGENERATED' });
-
-// Calidad
-export const fetchRegistrosCalidad = (): Promise<RegistroCalidad[]> => fetchFromSheet<RegistroCalidad>('calidad');
-export const createRegistroCalidad = async (data: NewRegistroCalidadData, ordenes: OrdenProduccion[]): Promise<RegistroCalidad> => {
-    const orden = ordenes.find(o => o.id === data.orden_id);
-    if (!orden) throw new Error('Orden no encontrada');
-
-    const newRow = {
-        'id': 'AUTOGENERATED',
-        'orden_id': data.orden_id,
-        'producto_nombre': orden.nombreProducto,
-        'fecha_inspeccion': formatDate(new Date()),
-        'resultado': data.resultado,
-        'observaciones': data.observaciones,
-    };
-    return postToSheet('calidad', newRow);
 };

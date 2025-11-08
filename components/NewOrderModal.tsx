@@ -5,7 +5,7 @@ import type { Producto, Cliente, NewOrderData } from '../types';
 interface NewOrderModalProps {
   onClose: () => void;
   onOrderCreated: () => void;
-  initialProductId?: number;
+  initialProductId?: string; // product 'codigo' is now a string
 }
 
 const Spinner: React.FC = () => <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>;
@@ -14,16 +14,11 @@ const NewOrderModal: React.FC<NewOrderModalProps> = ({ onClose, onOrderCreated, 
   const [productos, setProductos] = useState<Producto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   
-  // Form state
-  const [selectedProductId, setSelectedProductId] = useState<string>(initialProductId?.toString() || '');
-  const [selectedClienteId, setSelectedClienteId] = useState<string>('');
-  const [cantidad, setCantidad] = useState<string>('1');
-  const [prioridad, setPrioridad] = useState<'Baja' | 'Media' | 'Alta'>('Media');
-  const [ordenCompra, setOrdenCompra] = useState('');
-  const [referencia, setReferencia] = useState('');
-  const [materialDisponible, setMaterialDisponible] = useState<'Sí' | 'No'>('Sí');
-  const [tiempoEstimado, setTiempoEstimado] = useState('');
-  const [observacion, setObservacion] = useState('');
+  const [formData, setFormData] = useState<Partial<NewOrderData>>({
+    prioridad: 'Media',
+    material_disponible: 'Sí',
+    cantidad_unidades: 1
+  });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,45 +32,41 @@ const NewOrderModal: React.FC<NewOrderModalProps> = ({ onClose, onOrderCreated, 
         ]);
         setProductos(productosRes);
         setClientes(clientesRes);
-        if (initialProductId) {
-          setSelectedProductId(initialProductId.toString());
-        } else if (productosRes.length > 0) {
-          setSelectedProductId(productosRes[0].id.toString());
+        
+        // Pre-select product if initial id is provided
+        const initialProduct = initialProductId ? productosRes.find(p => p.codigo === initialProductId) : null;
+        if (initialProduct) {
+          setFormData(prev => ({...prev, descripcion: initialProduct.producto}));
         }
-        if (clientesRes.length > 0) {
-            setSelectedClienteId(clientesRes[0].id.toString());
-        }
+
       } catch (err) {
         setError('Error al cargar datos necesarios.');
       }
     };
     loadDropdownData();
   }, [initialProductId]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    const isNumber = ['cantidad_unidades', 'tiempo_estimado_dias'].includes(name);
+    setFormData(prev => ({
+        ...prev,
+        [name]: isNumber ? parseInt(value, 10) : value
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
-    if (!selectedProductId || !selectedClienteId || !cantidad || !ordenCompra || !tiempoEstimado) {
-      setError('Producto, cliente, cantidad, no. orden de compra y tiempo estimado son obligatorios.');
+    if (!formData.cliente || !formData.descripcion || !formData.cantidad_unidades || !formData.no_orden_compra || !formData.tiempo_estimado_dias) {
+      setError('Cliente, descripción, cantidad, no. orden de compra y tiempo estimado son obligatorios.');
       return;
     }
     
-    const orderData: NewOrderData = {
-      producto_id: parseInt(selectedProductId, 10),
-      cliente_id: parseInt(selectedClienteId, 10),
-      cantidad: parseInt(cantidad, 10),
-      prioridad,
-      orden_compra: ordenCompra,
-      referencia,
-      material_disponible: materialDisponible,
-      tiempo_estimado_dias: parseInt(tiempoEstimado, 10),
-      observacion,
-    };
-
     setLoading(true);
     try {
-      await createOrden(orderData, productos, clientes);
+      await createOrden(formData as NewOrderData);
       onOrderCreated();
     } catch (err: any) {
       setError(err.message || 'Error al crear la orden. Intente de nuevo.');
@@ -84,7 +75,7 @@ const NewOrderModal: React.FC<NewOrderModalProps> = ({ onClose, onOrderCreated, 
     }
   };
 
-  const isFormInvalid = !selectedProductId || !selectedClienteId || !cantidad || !ordenCompra || !tiempoEstimado || loading;
+  const isFormInvalid = !formData.cliente || !formData.descripcion || !formData.cantidad_unidades || !formData.no_orden_compra || !formData.tiempo_estimado_dias || loading;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={onClose}>
@@ -99,60 +90,66 @@ const NewOrderModal: React.FC<NewOrderModalProps> = ({ onClose, onOrderCreated, 
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="producto" className="block text-sm font-medium text-gray-700">Producto</label>
-                  <select id="producto" value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-                    {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.codigoProducto})</option>)}
+                  <label className="block text-sm font-medium text-gray-700">Producto (Descripción)</label>
+                  <select name="descripcion" value={formData.descripcion} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                    <option value="">Seleccione Producto</option>
+                    {productos.map(p => <option key={p.codigo} value={p.producto}>{p.producto} ({p.codigo})</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <label htmlFor="cliente" className="block text-sm font-medium text-gray-700">Cliente</label>
-                  <select id="cliente" value={selectedClienteId} onChange={(e) => setSelectedClienteId(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-                    {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre_cliente}</option>)}
+                  <label className="block text-sm font-medium text-gray-700">Cliente</label>
+                  <select name="cliente" value={formData.cliente} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                     <option value="">Seleccione Cliente</option>
+                    {clientes.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
                   </select>
                 </div>
                 
                 <div>
-                    <label htmlFor="ordenCompra" className="block text-sm font-medium text-gray-700">No. Orden Compra</label>
-                    <input type="text" id="ordenCompra" value={ordenCompra} onChange={e => setOrdenCompra(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
+                    <label className="block text-sm font-medium text-gray-700">No. Orden Compra</label>
+                    <input type="text" name="no_orden_compra" value={formData.no_orden_compra || ''} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
                 </div>
 
                 <div>
-                    <label htmlFor="referencia" className="block text-sm font-medium text-gray-700">Referencia</label>
-                    <input type="text" id="referencia" value={referencia} onChange={e => setReferencia(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
+                    <label className="block text-sm font-medium text-gray-700">Referencia</label>
+                    <input type="text" name="referencia" value={formData.referencia || ''} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
                 </div>
 
                 <div>
-                  <label htmlFor="cantidad" className="block text-sm font-medium text-gray-700">Cantidad</label>
-                  <input type="number" id="cantidad" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" min="1"/>
+                  <label className="block text-sm font-medium text-gray-700">Cantidad</label>
+                  <input type="number" name="cantidad_unidades" value={formData.cantidad_unidades || ''} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" min="1"/>
                 </div>
 
                 <div>
-                    <label htmlFor="tiempoEstimado" className="block text-sm font-medium text-gray-700">Tiempo Estimado (Días)</label>
-                    <input type="number" id="tiempoEstimado" value={tiempoEstimado} onChange={e => setTiempoEstimado(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" min="0" />
+                    <label className="block text-sm font-medium text-gray-700">Tiempo Estimado (Días)</label>
+                    <input type="number" name="tiempo_estimado_dias" value={formData.tiempo_estimado_dias || ''} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" min="0" />
                 </div>
                 
                 <div>
-                    <label htmlFor="materialDisponible" className="block text-sm font-medium text-gray-700">Material Disponible</label>
-                    <select id="materialDisponible" value={materialDisponible} onChange={(e) => setMaterialDisponible(e.target.value as any)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                    <label className="block text-sm font-medium text-gray-700">Material Disponible</label>
+                    <select name="material_disponible" value={formData.material_disponible} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
                         <option value="Sí">Sí</option>
                         <option value="No">No</option>
                     </select>
                 </div>
 
                 <div>
-                  <label htmlFor="prioridad" className="block text-sm font-medium text-gray-700">Prioridad</label>
-                  <select id="prioridad" value={prioridad} onChange={(e) => setPrioridad(e.target.value as any)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                  <label className="block text-sm font-medium text-gray-700">Prioridad</label>
+                  <select name="prioridad" value={formData.prioridad} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
                     <option value="Baja">Baja</option>
                     <option value="Media">Media</option>
                     <option value="Alta">Alta</option>
                   </select>
                 </div>
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700">Material</label>
+                    <input type="text" name="material" value={formData.material || ''} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
+                </div>
             </div>
 
             <div>
-                <label htmlFor="observacion" className="block text-sm font-medium text-gray-700">Observaciones</label>
-                <textarea id="observacion" value={observacion} onChange={e => setObservacion(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" rows={2}></textarea>
+                <label className="block text-sm font-medium text-gray-700">Observaciones</label>
+                <textarea name="observacion" value={formData.observacion || ''} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" rows={2}></textarea>
             </div>
             
             <div className="pt-2 flex justify-end space-x-3">

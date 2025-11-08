@@ -1,94 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import { createMantenimiento, fetchMaquinas } from '../services/apiService';
-import type { NewMantenimientoData, Maquina } from '../types';
+import type { NewMantenimientoData, Maquina, Personal } from '../types';
+import { createMantenimiento, fetchMaquinas, fetchPersonal } from '../services/apiService';
 
-interface Props { onClose: () => void; onCreated: () => void; }
+interface Props { onClose: () => void; onSuccess: () => void; }
 
 const Spinner: React.FC = () => <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>;
 
-const NewMantenimientoModal: React.FC<Props> = ({ onClose, onCreated }) => {
-  const [maquinas, setMaquinas] = useState<Maquina[]>([]);
-  const [maquinaId, setMaquinaId] = useState('');
-  const [fecha, setFecha] = useState('');
-  const [tipo, setTipo] = useState<'Preventivo' | 'Correctivo'>('Preventivo');
-  const [descripcion, setDescripcion] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+const NewMantenimientoModal: React.FC<Props> = ({ onClose, onSuccess }) => {
+    const [formData, setFormData] = useState<Partial<NewMantenimientoData>>({ tipo_mantenimiento: 'Preventivo' });
+    const [maquinas, setMaquinas] = useState<Maquina[]>([]);
+    const [personal, setPersonal] = useState<Personal[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-  useEffect(() => {
-    const loadMaquinas = async () => {
-        try {
-            const data = await fetchMaquinas();
-            setMaquinas(data);
-            if (data.length > 0) {
-                setMaquinaId(data[0].id.toString());
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const [maquinasRes, personalRes] = await Promise.all([fetchMaquinas(), fetchPersonal()]);
+                setMaquinas(maquinasRes);
+                setPersonal(personalRes);
+            } catch {
+                setError('No se pudieron cargar datos necesarios.');
             }
-        } catch(err) {
-            setError('Error al cargar las máquinas');
+        };
+        loadData();
+    }, []);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.maquina_equipo || !formData.fecha_programada || !formData.tecnico_responsable || !formData.estado) {
+            setError('Máquina, fecha, técnico y estado son obligatorios.');
+            return;
         }
-    }
-    loadMaquinas();
-  }, [])
+        setLoading(true);
+        try {
+            await createMantenimiento(formData as NewMantenimientoData);
+            onSuccess();
+        } catch (err: any) {
+            setError(err.message || 'Error al crear el registro.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!maquinaId || !fecha || !descripcion) {
-        setError('Todos los campos son obligatorios.');
-        return;
-    }
-    setError('');
-    setLoading(true);
-    try {
-        const data: NewMantenimientoData = { maquina_id: parseInt(maquinaId), fecha_programada: fecha, tipo_mantenimiento: tipo, descripcion };
-        await createMantenimiento(data, maquinas);
-        onCreated();
-    } catch (err: any) {
-        setError(err.message || 'Error al programar el mantenimiento.');
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-primary">Programar Mantenimiento</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b"><h2 className="text-2xl font-bold text-primary">Nuevo Mantenimiento</h2></div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    {error && <p className="text-red-500 bg-red-50 p-2 rounded-md text-sm">{error}</p>}
+                    <select name="maquina_equipo" onChange={handleChange} className="w-full p-2 border rounded" required>
+                        <option value="">Seleccione Máquina/Equipo *</option>
+                        {maquinas.map(m => <option key={m.cod_actual} value={m.descripcion}>{m.descripcion}</option>)}
+                    </select>
+                     <select name="tecnico_responsable" onChange={handleChange} className="w-full p-2 border rounded" required>
+                        <option value="">Seleccione Técnico Responsable *</option>
+                        {personal.map(p => <option key={p.cedula} value={p.nombre}>{p.nombre}</option>)}
+                    </select>
+                    <input name="fecha_programada" type="date" onChange={handleChange} className="w-full p-2 border rounded" required/>
+                    <select name="tipo_mantenimiento" value={formData.tipo_mantenimiento} onChange={handleChange} className="w-full p-2 border rounded">
+                        <option value="Preventivo">Preventivo</option>
+                        <option value="Correctivo">Correctivo</option>
+                    </select>
+                    <input name="estado" placeholder="Estado *" onChange={handleChange} className="w-full p-2 border rounded" required />
+                    <textarea name="descripcion_mantenimiento" placeholder="Descripción del mantenimiento" onChange={handleChange} className="w-full p-2 border rounded" />
+                    <textarea name="insumos_utilizados" placeholder="Insumos utilizados" onChange={handleChange} className="w-full p-2 border rounded" />
+                    <textarea name="observaciones" placeholder="Observaciones" onChange={handleChange} className="w-full p-2 border rounded" />
+                    <div className="flex justify-end space-x-2 pt-2">
+                        <button type="button" onClick={onClose} className="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
+                        <button type="submit" disabled={loading} className="bg-primary text-white px-4 py-2 rounded disabled:bg-blue-300 flex items-center justify-center w-28">
+                            {loading ? <Spinner/> : 'Guardar'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && <p className="text-sm text-center text-red-500 bg-red-50 p-3 rounded-lg">{error}</p>}
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Máquina</label>
-            <select value={maquinaId} onChange={e => setMaquinaId(e.target.value)} className="mt-1 w-full p-2 border border-gray-300 rounded-md">
-                {maquinas.map(m => <option key={m.id} value={m.id}>{m.nombre} ({m.codigo})</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Fecha Programada</label>
-            <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="mt-1 w-full p-2 border border-gray-300 rounded-md" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Tipo de Mantenimiento</label>
-            <select value={tipo} onChange={e => setTipo(e.target.value as any)} className="mt-1 w-full p-2 border border-gray-300 rounded-md">
-              <option value="Preventivo">Preventivo</option>
-              <option value="Correctivo">Correctivo</option>
-            </select>
-          </div>
-           <div>
-            <label className="block text-sm font-medium text-gray-700">Descripción</label>
-            <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} className="mt-1 w-full p-2 border border-gray-300 rounded-md" rows={3}></textarea>
-          </div>
-          <div className="pt-2 flex justify-end space-x-3">
-             <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300">Cancelar</button>
-             <button type="submit" disabled={loading} className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-800 disabled:bg-blue-300 w-32 h-10 flex items-center justify-center">
-                {loading ? <Spinner /> : 'Guardar'}
-             </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+    );
 };
+
 export default NewMantenimientoModal;

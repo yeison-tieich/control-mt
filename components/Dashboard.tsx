@@ -23,11 +23,11 @@ const OrderCard: React.FC<{ orden: OrdenProduccion; onClick: () => void; }> = ({
         className={`bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 p-4 flex items-center space-x-4 cursor-pointer border-l-4 ${priorityColors[orden.prioridad] || 'border-gray-300'}`}
     >
         <div className="flex-shrink-0 bg-primary text-white rounded-full h-12 w-12 flex items-center justify-center font-bold text-lg">
-            {orden.id}
+            {orden.no_ot}
         </div>
         <div className="flex-grow">
-            <p className="font-bold text-gray-800">{orden.nombreProducto}</p>
-            <p className="text-sm text-gray-500">Cliente: {orden.nombreCliente} - Cant: {orden.cantidadSolicitada} un.</p>
+            <p className="font-bold text-gray-800 truncate" title={orden.descripcion}>{orden.descripcion}</p>
+            <p className="text-sm text-gray-500">Cliente: {orden.cliente} - Cant: {orden.cantidad_unidades} un.</p>
         </div>
         <div className="flex-shrink-0">
             <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusColors[orden.estado] || 'bg-gray-100 text-gray-800'}`}>
@@ -95,7 +95,7 @@ const Dashboard: React.FC = () => {
       <h2 className="text-2xl font-bold text-gray-700 mt-8 mb-4">Órdenes de Trabajo Recientes</h2>
       <div className="space-y-4">
         {ordenes.map(orden => (
-          <OrderCard key={orden.id} orden={orden} onClick={() => setSelectedOrder(orden)} />
+          <OrderCard key={orden.no_ot} orden={orden} onClick={() => setSelectedOrder(orden)} />
         ))}
       </div>
 

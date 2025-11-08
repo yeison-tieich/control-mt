@@ -24,15 +24,15 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ producto, onClo
                 <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                     <div className="p-4 sticky top-0 bg-white border-b border-gray-200 z-10">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-2xl font-bold text-primary">{producto.nombre}</h2>
+                            <h2 className="text-2xl font-bold text-primary">{producto.producto}</h2>
                             <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
                         </div>
                     </div>
 
                     <div className="p-6 space-y-6">
                         <div className="relative h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-                            {producto.imageUrl ? (
-                                <img src={producto.imageUrl} alt={producto.nombre} className="h-full w-full object-contain" />
+                            {producto.imagen_producto ? (
+                                <img src={producto.imagen_producto} alt={producto.producto} className="h-full w-full object-contain" />
                             ) : (
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                             )}
@@ -41,10 +41,9 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ producto, onClo
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                             <div>
                                 <h3 className="font-bold text-lg text-primary mb-2">Detalles Generales</h3>
-                                <DetailRow label="Código" value={producto.codigoProducto} />
+                                <DetailRow label="Código" value={producto.codigo} />
                                 <DetailRow label="Código Nuevo" value={producto.codigo_nuevo} />
-                                <DetailRow label="Cliente Asociado" value={producto.cliente_asociado} />
-                                <DetailRow label="Stock Disponible" value={`${producto.stock} un.`} />
+                                <DetailRow label="Cliente Asociado" value={producto.cliente} />
                                 <DetailRow label="Ubicación" value={producto.ubicacion_almacen} />
                                 <DetailRow label="Empaque de" value={producto.empaque_de} />
                             </div>
@@ -61,8 +60,8 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ producto, onClo
                                 <h3 className="font-bold text-lg text-primary mb-2 mt-4">Rendimiento</h3>
                                 <DetailRow label="Piezas por Hora" value={producto.piezas_por_hora} />
                                 <DetailRow label="Piezas por Lámina (4x8 A)" value={producto.piezas_lamina_4x8_a} />
-                                <DetailRow label="Piezas por Lámina (4x8)" value={producto.piezas_lamina_4x8} />
-                                <DetailRow label="Piezas por Lámina (2x1)" value={producto.piezas_lamina_2x1} />
+                                <DetailRow label="Piezas por Lámina (4x8)" value={producto.piezas_por_lamina_4x8} />
+                                <DetailRow label="Piezas por Lámina (2x1)" value={producto.piezas_por_lamina_2x1} />
                             </div>
                         </div>
 
@@ -81,7 +80,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ producto, onClo
                 <NewOrderModal 
                     onClose={() => setNewOrderModalOpen(false)}
                     onOrderCreated={onDataChange}
-                    initialProductId={producto.id}
+                    initialProductId={producto.codigo}
                 />
             )}
         </>
