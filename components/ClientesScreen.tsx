@@ -30,9 +30,9 @@ const ClientesScreen: React.FC = () => {
 
     const filteredClientes = useMemo(() => {
         return clientes.filter(c =>
-            c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            c.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            c.nit.toLowerCase().includes(searchTerm.toLowerCase())
+            (c.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (c.empresa || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (c.nit || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [clientes, searchTerm]);
 

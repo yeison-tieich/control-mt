@@ -41,9 +41,9 @@ const StaffScreen: React.FC = () => {
 
     const filteredPersonal = useMemo(() => {
         return personal.filter(p => 
-            p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.cargo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.cedula.toLowerCase().includes(searchTerm.toLowerCase())
+            (p.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.cargo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.cedula || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [personal, searchTerm]);
 

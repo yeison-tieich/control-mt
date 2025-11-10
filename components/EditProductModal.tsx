@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
-import { createProducto } from '../services/apiService';
-import type { NewProductoData } from '../types';
+import React, { useState, useEffect } from 'react';
+import { updateProducto } from '../services/apiService';
+import type { Producto } from '../types';
 
-interface NewProductModalProps {
+interface EditProductModalProps {
+  producto: Producto;
   onClose: () => void;
-  onProductCreated: () => void;
+  onProductUpdated: () => void;
 }
 
 const Spinner: React.FC = () => <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>;
 
-const NewProductModal: React.FC<NewProductModalProps> = ({ onClose, onProductCreated }) => {
-  const [formData, setFormData] = useState<Partial<NewProductoData>>({});
-  
+const EditProductModal: React.FC<EditProductModalProps> = ({ producto, onClose, onProductUpdated }) => {
+  const [formData, setFormData] = useState<Partial<Producto>>(producto);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Fix: Handle empty string for number inputs to avoid storing NaN.
+  useEffect(() => {
+    setFormData(producto);
+  }, [producto]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     const isNumber = e.target.type === 'number';
@@ -26,29 +29,28 @@ const NewProductModal: React.FC<NewProductModalProps> = ({ onClose, onProductCre
     e.preventDefault();
     setError('');
 
-    if (!formData.producto || !formData.codigo) {
-      setError('Nombre y código del producto son obligatorios.');
+    if (!formData.producto) {
+      setError('El nombre del producto es obligatorio.');
       return;
     }
 
     setLoading(true);
     try {
-      await createProducto(formData as NewProductoData);
-      onProductCreated();
+      await updateProducto(producto.codigo, formData);
+      onProductUpdated();
     } catch (err: any) {
-      setError(err.message || 'Error al crear el producto. Intente de nuevo.');
+      setError(err.message || 'Error al actualizar el producto.');
     } finally {
       setLoading(false);
     }
   };
 
-  const isFormInvalid = !formData.producto || !formData.codigo || loading;
+  const isFormInvalid = !formData.producto || loading;
 
-  // Fix: Explicitly cast value to string for the input's value prop to fix type errors.
-  const InputField: React.FC<{name: keyof NewProductoData, label: string, type?: string, required?: boolean}> = ({name, label, type='text', required=false}) => (
+  const InputField: React.FC<{name: keyof Producto, label: string, type?: string, required?: boolean, disabled?: boolean}> = ({name, label, type='text', required=false, disabled=false}) => (
      <div>
         <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}{required && ' *'}</label>
-        <input type={type} id={name} name={name} value={String(formData[name] ?? '')} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" />
+        <input type={type} id={name} name={name} value={String(formData[name] ?? '')} onChange={handleChange} disabled={disabled} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
     </div>
   );
 
@@ -56,7 +58,7 @@ const NewProductModal: React.FC<NewProductModalProps> = ({ onClose, onProductCre
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl" onClick={e => e.stopPropagation()}>
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-primary">Nuevo Producto</h2>
+          <h2 className="text-2xl font-bold text-primary">Editar Producto</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
         </div>
         
@@ -64,7 +66,7 @@ const NewProductModal: React.FC<NewProductModalProps> = ({ onClose, onProductCre
             {error && <p className="text-sm text-red-500 bg-red-50 p-3 rounded-lg text-center mb-4">{error}</p>}
             <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <InputField name="producto" label="Producto" required />
-                <InputField name="codigo" label="Código" required />
+                <InputField name="codigo" label="Código" disabled />
                 <InputField name="codigo_nuevo" label="Código Nuevo" />
                 <InputField name="imagen_url" label="URL de la Imagen" />
                 <InputField name="cliente" label="Cliente Asociado" />
@@ -87,7 +89,7 @@ const NewProductModal: React.FC<NewProductModalProps> = ({ onClose, onProductCre
                   Cancelar
               </button>
               <button type="submit" disabled={isFormInvalid} className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-800 disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center justify-center w-36 h-10 transition-colors">
-                {loading ? <Spinner /> : 'Crear Producto'}
+                {loading ? <Spinner /> : 'Guardar Cambios'}
               </button>
             </div>
         </form>
@@ -96,4 +98,4 @@ const NewProductModal: React.FC<NewProductModalProps> = ({ onClose, onProductCre
   );
 };
 
-export default NewProductModal;
+export default EditProductModal;
